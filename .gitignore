@@ -48,3 +48,9 @@ htmlcov/
 
 # Logs
 *.log
+
+# Test files with hardcoded API keys (DO NOT COMMIT)
+test_*.py
+investigate_*.py
+explore_*.py
+advanced_*.py
