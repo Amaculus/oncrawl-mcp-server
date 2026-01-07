@@ -126,8 +126,127 @@ class OnCrawlClient:
         }
         if oql:
             payload["oql"] = oql
-        
+
         return self._post(f"data/crawl/{crawl_id}/links", json_data=payload)
+
+    def search_all_links(
+        self,
+        crawl_id: str,
+        fields: list[str],
+        oql: Optional[dict] = None,
+        max_results: Optional[int] = None,
+        batch_size: int = 10000
+    ) -> dict:
+        """
+        Auto-paginating link search that bypasses the 10k limit.
+        Fetches all matching links by paginating through results.
+
+        Args:
+            crawl_id: The crawl ID
+            fields: Fields to return
+            oql: Optional filter
+            max_results: Maximum results to return (None = all)
+            batch_size: Results per API call (max 10000)
+
+        Returns:
+            dict with 'links' array and 'meta' with total_hits
+        """
+        all_links = []
+        offset = 0
+        total_hits = None
+
+        while True:
+            result = self.search_links(
+                crawl_id=crawl_id,
+                fields=fields,
+                oql=oql,
+                limit=min(batch_size, 10000),
+                offset=offset
+            )
+
+            batch_links = result.get("links", [])
+            if total_hits is None:
+                total_hits = result.get("meta", {}).get("total_hits", 0)
+
+            all_links.extend(batch_links)
+
+            # Check if we're done
+            if len(batch_links) < batch_size:
+                break
+            if max_results and len(all_links) >= max_results:
+                all_links = all_links[:max_results]
+                break
+
+            offset += batch_size
+
+        return {
+            "links": all_links,
+            "meta": {
+                "total_hits": total_hits,
+                "returned": len(all_links)
+            }
+        }
+
+    def search_all_pages(
+        self,
+        crawl_id: str,
+        fields: list[str],
+        oql: Optional[dict] = None,
+        sort: Optional[list[dict]] = None,
+        max_results: Optional[int] = None,
+        batch_size: int = 10000
+    ) -> dict:
+        """
+        Auto-paginating page search that bypasses the 10k limit.
+        Fetches all matching pages by paginating through results.
+
+        Args:
+            crawl_id: The crawl ID
+            fields: Fields to return
+            oql: Optional filter
+            sort: Optional sort order
+            max_results: Maximum results to return (None = all)
+            batch_size: Results per API call (max 10000)
+
+        Returns:
+            dict with 'urls' array and 'meta' with total_hits
+        """
+        all_pages = []
+        offset = 0
+        total_hits = None
+
+        while True:
+            result = self.search_pages(
+                crawl_id=crawl_id,
+                fields=fields,
+                oql=oql,
+                sort=sort,
+                limit=min(batch_size, 10000),
+                offset=offset
+            )
+
+            batch_pages = result.get("urls", [])
+            if total_hits is None:
+                total_hits = result.get("meta", {}).get("total_hits", 0)
+
+            all_pages.extend(batch_pages)
+
+            # Check if we're done
+            if len(batch_pages) < batch_size:
+                break
+            if max_results and len(all_pages) >= max_results:
+                all_pages = all_pages[:max_results]
+                break
+
+            offset += batch_size
+
+        return {
+            "urls": all_pages,
+            "meta": {
+                "total_hits": total_hits,
+                "returned": len(all_pages)
+            }
+        }
     
     # === Aggregations ===
     

@@ -137,8 +137,10 @@ claude mcp add oncrawl
 | `oncrawl_list_projects` | List all projects in a workspace |
 | `oncrawl_get_project` | Get project details including crawl IDs and COC IDs |
 | `oncrawl_get_schema` | **Call first** - discover available fields for a crawl |
-| `oncrawl_search_pages` | Query pages with OQL filtering, sorting, pagination |
-| `oncrawl_search_links` | Query internal link graph |
+| `oncrawl_search_pages` | Query pages with OQL filtering, sorting, pagination (max 10k) |
+| `oncrawl_search_links` | Query internal link graph (max 10k) |
+| `oncrawl_search_all_pages` | **Auto-paginating** page search - bypasses 10k limit |
+| `oncrawl_search_all_links` | **Auto-paginating** link search - bypasses 10k limit |
 | `oncrawl_aggregate` | Group and count by any dimension with range support |
 | `oncrawl_export_pages` | Full export without 10k limit |
 | `oncrawl_search_clusters` | Find duplicate content clusters |
@@ -146,6 +148,14 @@ claude mcp add oncrawl
 | `oncrawl_get_coc_schema` | Discover fields for crawl-over-crawl comparison |
 | `oncrawl_search_coc` | Find what changed between two crawls |
 | `oncrawl_aggregate_coc` | Aggregate change patterns at scale |
+
+### Handling Large Result Sets
+
+The OnCrawl API limits search results to 10,000 per request. For larger datasets:
+
+- **`oncrawl_search_all_pages`** / **`oncrawl_search_all_links`**: Automatically paginate through all results
+- Use `max_results` parameter to cap the total (e.g., `max_results: 50000`)
+- For very large exports (100k+), consider using filters to reduce the dataset
 
 ## Usage Examples
 

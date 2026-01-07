@@ -178,6 +178,75 @@ Use OQL to filter by source or target URL patterns.""",
             }
         ),
         Tool(
+            name="oncrawl_search_all_pages",
+            description="""Auto-paginating page search that bypasses the 10,000 result limit.
+Automatically fetches all matching pages by paginating through results.
+
+Use this when you need MORE than 10,000 results. For smaller queries, use oncrawl_search_pages instead.
+
+WARNING: Large result sets can take a long time and use significant memory. Use max_results to limit if needed.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "crawl_id": {
+                        "type": "string",
+                        "description": "The crawl ID to search"
+                    },
+                    "fields": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Fields to return"
+                    },
+                    "oql": {
+                        "type": "object",
+                        "description": "OQL filter object"
+                    },
+                    "sort": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Sort order"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum results to return (default: all matching results)"
+                    }
+                },
+                "required": ["crawl_id", "fields"]
+            }
+        ),
+        Tool(
+            name="oncrawl_search_all_links",
+            description="""Auto-paginating link search that bypasses the 10,000 result limit.
+Automatically fetches all matching links by paginating through results.
+
+Use this when you need MORE than 10,000 results. For smaller queries, use oncrawl_search_links instead.
+
+WARNING: Large result sets can take a long time and use significant memory. Use max_results to limit if needed.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "crawl_id": {
+                        "type": "string",
+                        "description": "The crawl ID to search"
+                    },
+                    "fields": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Fields to return (e.g., ['origin', 'target', 'anchor', 'follow'])"
+                    },
+                    "oql": {
+                        "type": "object",
+                        "description": "OQL filter object"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum results to return (default: all matching results)"
+                    }
+                },
+                "required": ["crawl_id", "fields"]
+            }
+        ),
+        Tool(
             name="oncrawl_aggregate",
             description="""Run aggregate queries to group and count pages by dimensions. Essential for understanding site structure at scale.
 
@@ -452,7 +521,24 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 oql=arguments.get("oql"),
                 limit=arguments.get("limit", 100)
             )
-        
+
+        elif name == "oncrawl_search_all_pages":
+            result = client.search_all_pages(
+                crawl_id=arguments["crawl_id"],
+                fields=arguments["fields"],
+                oql=arguments.get("oql"),
+                sort=arguments.get("sort"),
+                max_results=arguments.get("max_results")
+            )
+
+        elif name == "oncrawl_search_all_links":
+            result = client.search_all_links(
+                crawl_id=arguments["crawl_id"],
+                fields=arguments["fields"],
+                oql=arguments.get("oql"),
+                max_results=arguments.get("max_results")
+            )
+
         elif name == "oncrawl_aggregate":
             result = client.aggregate(
                 crawl_id=arguments["crawl_id"],
