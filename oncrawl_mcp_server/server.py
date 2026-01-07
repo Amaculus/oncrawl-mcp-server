@@ -24,11 +24,28 @@ server = Server("oncrawl-mcp")
 # Client will be initialized on first use
 _client: Optional[OnCrawlClient] = None
 
+# Get default workspace ID from environment
+DEFAULT_WORKSPACE_ID = os.environ.get("ONCRAWL_WORKSPACE_ID")
+
 def get_client() -> OnCrawlClient:
     global _client
     if _client is None:
         _client = OnCrawlClient()
     return _client
+
+
+def compact_response(data: dict) -> str:
+    """Convert response to compact JSON, removing nulls and empty values."""
+    def clean(obj):
+        if isinstance(obj, dict):
+            return {k: clean(v) for k, v in obj.items()
+                    if v is not None and v != "" and v != [] and v != {}}
+        elif isinstance(obj, list):
+            return [clean(item) for item in obj if item is not None]
+        return obj
+
+    cleaned = clean(data)
+    return json.dumps(cleaned, separators=(',', ':'))
 
 
 # === Tool Definitions ===
@@ -475,16 +492,41 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         result = None
         
         if name == "oncrawl_list_projects":
-            workspace_id = arguments.get("workspace_id") or os.environ.get("ONCRAWL_WORKSPACE_ID")
+            workspace_id = arguments.get("workspace_id") or DEFAULT_WORKSPACE_ID
             if not workspace_id:
-                raise ValueError("workspace_id is required either as a parameter or via ONCRAWL_WORKSPACE_ID environment variable")
+                raise ValueError("workspace_id required - provide as parameter or set ONCRAWL_WORKSPACE_ID env var")
             result = client.list_projects(
                 workspace_id=workspace_id,
                 limit=arguments.get("limit", 100)
             )
+            # Simplify project list response
+            if "projects" in result:
+                result["projects"] = [
+                    {
+                        "id": p["id"],
+                        "name": p["name"],
+                        "domain": p.get("domain"),
+                        "start_url": p.get("start_url"),
+                        "last_crawl_id": p.get("last_crawl_id"),
+                        "crawl_ids": p.get("crawl_ids", [])[-5:],  # Last 5 crawls only
+                        "coc_ids": p.get("crawl_over_crawl_ids", [])
+                    }
+                    for p in result["projects"]
+                ]
+                result.pop("meta", None)  # Remove metadata
         
         elif name == "oncrawl_get_project":
-            result = client.get_project(arguments["project_id"])
+            raw = client.get_project(arguments["project_id"])
+            p = raw.get("project", raw)
+            result = {
+                "id": p["id"],
+                "name": p["name"],
+                "domain": p.get("domain"),
+                "start_url": p.get("start_url"),
+                "last_crawl_id": p.get("last_crawl_id"),
+                "crawl_ids": p.get("crawl_ids", [])[-10:],  # Last 10 crawls
+                "coc_ids": p.get("crawl_over_crawl_ids", [])
+            }
         
         elif name == "oncrawl_get_schema":
             result = client.get_fields(
@@ -607,9 +649,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
-        
-        return [TextContent(type="text", text=json.dumps(result, indent=2))]
-    
+
+        return [TextContent(type="text", text=compact_response(result))]
+
     except Exception as e:
         logger.error(f"Tool {name} failed: {e}")
         return [TextContent(type="text", text=f"Error: {str(e)}")]
