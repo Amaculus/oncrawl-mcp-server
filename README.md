@@ -80,7 +80,7 @@ Then edit the config or add manually:
   "mcpServers": {
     "oncrawl": {
       "command": "/FULL/PATH/TO/oncrawl-mcp/.venv/bin/python",
-      "args": ["/FULL/PATH/TO/oncrawl-mcp/server.py"],
+      "args": ["-m", "oncrawl_mcp_server.server"],
       "env": {
         "ONCRAWL_API_TOKEN": "your-api-token-here"
       }
@@ -98,7 +98,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or 
   "mcpServers": {
     "oncrawl": {
       "command": "/FULL/PATH/TO/oncrawl-mcp/.venv/bin/python",
-      "args": ["/FULL/PATH/TO/oncrawl-mcp/server.py"],
+      "args": ["-m", "oncrawl_mcp_server.server"],
       "env": {
         "ONCRAWL_API_TOKEN": "your-api-token-here"
       }

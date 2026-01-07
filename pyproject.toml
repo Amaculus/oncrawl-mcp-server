@@ -32,4 +32,7 @@ Homepage = "https://github.com/yourusername/oncrawl-mcp-server"
 Issues = "https://github.com/yourusername/oncrawl-mcp-server/issues"
 
 [project.scripts]
-oncrawl-mcp-server = "server:main"
+oncrawl-mcp-server = "oncrawl_mcp_server.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["oncrawl_mcp_server"]

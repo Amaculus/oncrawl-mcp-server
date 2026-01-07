@@ -11,7 +11,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
-from oncrawl_client import OnCrawlClient
+from .oncrawl_client import OnCrawlClient
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

@@ -3,7 +3,7 @@ Simple test to verify MCP server can start and list tools
 """
 import os
 import asyncio
-from server import list_tools
+from oncrawl_mcp_server.server import list_tools
 
 # Set API token for testing
 os.environ['ONCRAWL_API_TOKEN'] = '04Q56SGGKZVXAZFKUR9JC0Q5GZCOAY1VA6O05POX'

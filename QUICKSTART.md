@@ -38,6 +38,9 @@ source .venv/bin/activate  # Mac/Linux
 # Install dependencies
 pip install -r requirements.txt
 
+# Install the package in development mode (so it can be run as a module)
+pip install -e .
+
 # Add to Claude Code config
 claude mcp add oncrawl
 ```
@@ -49,7 +52,7 @@ Then edit the config file at `~/.config/claude/claude_desktop_config.json`:
   "mcpServers": {
     "oncrawl": {
       "command": "C:\\Users\\Antonio\\Oncrawl MCP\\.venv\\Scripts\\python.exe",
-      "args": ["C:\\Users\\Antonio\\Oncrawl MCP\\server.py"],
+      "args": ["-m", "oncrawl_mcp_server.server"],
       "env": {
         "ONCRAWL_API_TOKEN": "04Q56SGGKZVXAZFKUR9JC0Q5GZCOAY1VA6O05POX"
       }
@@ -70,7 +73,7 @@ Add:
   "mcpServers": {
     "oncrawl": {
       "command": "C:\\Users\\Antonio\\Oncrawl MCP\\.venv\\Scripts\\python.exe",
-      "args": ["C:\\Users\\Antonio\\Oncrawl MCP\\server.py"],
+      "args": ["-m", "oncrawl_mcp_server.server"],
       "env": {
         "ONCRAWL_API_TOKEN": "your-token-here"
       }
