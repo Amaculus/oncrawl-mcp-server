@@ -54,3 +54,12 @@ test_*.py
 investigate_*.py
 explore_*.py
 advanced_*.py
+export_*.py
+find_*.py
+
+# Data exports (generated files)
+*.csv
+*.jsonl
+
+# Claude Code settings (user-specific)
+.claude/
