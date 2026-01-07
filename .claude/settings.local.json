@@ -11,7 +11,16 @@
       "Bash(\".venv/Scripts/pip.exe\" install build twine)",
       "Bash(\".venv/Scripts/python.exe\" -m build)",
       "Bash(\".venv/Scripts/pip.exe\" install -e .)",
-      "Bash(\".venv/Scripts/python.exe\" -m oncrawl_mcp_server.server --help)"
+      "Bash(\".venv/Scripts/python.exe\" -m oncrawl_mcp_server.server --help)",
+      "Bash(echo:*)",
+      "Bash(claude config:*)",
+      "Bash(if [ -f \"$USERPROFILE/.config/claude/claude_desktop_config.json\" ])",
+      "Bash(then cat \"$USERPROFILE/.config/claude/claude_desktop_config.json\")",
+      "Bash(else echo \"Config file does not exist yet\")",
+      "Bash(fi:*)",
+      "Bash(\".venv/Scripts/python.exe\" test_workspace.py)",
+      "Bash(\".venv/Scripts/python.exe\" test_full_mcp.py)",
+      "Bash(\".venv/Scripts/pip.exe\" install -e . --force-reinstall --no-deps)"
     ]
   }
 }

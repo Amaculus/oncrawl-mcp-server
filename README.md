@@ -5,9 +5,10 @@ MCP server that exposes OnCrawl's API for use with Claude Code and Claude Deskto
 ## Features
 
 - **Raw data access**: Query pages, links, clusters, structured data with flexible OQL
-- **Schema discovery**: Claude can learn what fields are available before querying  
+- **Schema discovery**: Claude can learn what fields are available before querying
 - **Aggregations**: Group/count by any dimension for pattern detection
 - **Full exports**: No 10k limit when you need complete datasets
+- **Crawl-over-crawl analysis**: Track changes between crawls to detect new pages, removed pages, status changes, and more
 
 ## Prerequisites
 
@@ -147,6 +148,9 @@ If you also have the GSC MCP server:
 | `oncrawl_export_pages` | Full export without 10k limit |
 | `oncrawl_search_clusters` | Find duplicate content clusters |
 | `oncrawl_search_structured_data` | Audit schema markup |
+| `oncrawl_get_coc_schema` | Discover fields for crawl-over-crawl comparison |
+| `oncrawl_search_coc` | Find what changed between crawls |
+| `oncrawl_aggregate_coc` | Aggregate change patterns at scale |
 
 ## Usage Examples
 

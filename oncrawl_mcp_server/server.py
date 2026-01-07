@@ -295,6 +295,103 @@ Warning: Can be slow for large sites. Consider filtering with OQL first.""",
                 },
                 "required": ["crawl_id", "fields"]
             }
+        ),
+        Tool(
+            name="oncrawl_get_coc_schema",
+            description="""Get available fields for crawl-over-crawl comparison.
+Call this before querying COC data to understand what change metrics are available.
+COC IDs are found in the project details (crawl_over_crawl_ids array).""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "coc_id": {
+                        "type": "string",
+                        "description": "The crawl-over-crawl comparison ID"
+                    },
+                    "data_type": {
+                        "type": "string",
+                        "enum": ["pages"],
+                        "description": "Data type (default: pages)",
+                        "default": "pages"
+                    }
+                },
+                "required": ["coc_id"]
+            }
+        ),
+        Tool(
+            name="oncrawl_search_coc",
+            description="""Search crawl-over-crawl data to find what changed between crawls.
+Essential for detecting:
+- New pages appearing (where did they come from?)
+- Pages that disappeared (were they removed or broken?)
+- Status code changes (200→404, 200→301, etc.)
+- Depth changes (pages moving deeper/shallower in structure)
+- Inlink changes (pages gaining/losing internal links)
+
+Use OQL to filter for specific change patterns.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "coc_id": {
+                        "type": "string",
+                        "description": "The crawl-over-crawl comparison ID"
+                    },
+                    "fields": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Fields to return - typically includes 'previous_' and 'current_' variants"
+                    },
+                    "oql": {
+                        "type": "object",
+                        "description": "OQL filter for specific changes"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default 100)",
+                        "default": 100
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "default": 0
+                    },
+                    "sort": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "field": {"type": "string"},
+                                "order": {"type": "string", "enum": ["asc", "desc"]}
+                            }
+                        },
+                        "description": "Sort order"
+                    }
+                },
+                "required": ["coc_id", "fields"]
+            }
+        ),
+        Tool(
+            name="oncrawl_aggregate_coc",
+            description="""Aggregate crawl-over-crawl data to see change patterns at scale.
+Examples:
+- Count pages by change type (new, removed, changed, unchanged)
+- Group status code changes
+- See which URL patterns had the most changes""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "coc_id": {
+                        "type": "string",
+                        "description": "The crawl-over-crawl comparison ID"
+                    },
+                    "aggs": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Array of aggregation objects"
+                    }
+                },
+                "required": ["coc_id", "aggs"]
+            }
         )
     ]
 
@@ -384,7 +481,40 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 oql=arguments.get("oql"),
                 limit=arguments.get("limit", 100)
             )
-        
+
+        elif name == "oncrawl_get_coc_schema":
+            result = client.get_crawl_over_crawl_fields(
+                coc_id=arguments["coc_id"],
+                data_type=arguments.get("data_type", "pages")
+            )
+            if "fields" in result:
+                result["fields"] = [
+                    {
+                        "name": f["name"],
+                        "type": f["type"],
+                        "filters": f.get("actions", []),
+                        "can_aggregate": f.get("agg_dimension", False),
+                        "agg_methods": f.get("agg_metric_methods", [])
+                    }
+                    for f in result["fields"]
+                ]
+
+        elif name == "oncrawl_search_coc":
+            result = client.search_crawl_over_crawl(
+                coc_id=arguments["coc_id"],
+                fields=arguments["fields"],
+                oql=arguments.get("oql"),
+                limit=arguments.get("limit", 100),
+                offset=arguments.get("offset", 0),
+                sort=arguments.get("sort")
+            )
+
+        elif name == "oncrawl_aggregate_coc":
+            result = client.aggregate_crawl_over_crawl(
+                coc_id=arguments["coc_id"],
+                aggs=arguments["aggs"]
+            )
+
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
         

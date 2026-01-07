@@ -236,5 +236,48 @@ class OnCrawlClient:
         }
         if oql:
             payload["oql"] = oql
-        
+
         return self._post(f"data/crawl/{crawl_id}/structured_data", json_data=payload)
+
+    # === Crawl Over Crawl ===
+
+    def get_crawl_over_crawl_fields(self, coc_id: str, data_type: str = "pages") -> dict:
+        """Get available fields for crawl over crawl comparison"""
+        return self._get(f"data/crawl_over_crawl/{coc_id}/{data_type}/fields")
+
+    def search_crawl_over_crawl(
+        self,
+        coc_id: str,
+        fields: list[str],
+        oql: Optional[dict] = None,
+        limit: int = 100,
+        offset: int = 0,
+        sort: Optional[list[dict]] = None
+    ) -> dict:
+        """
+        Search crawl over crawl comparison data.
+        Shows what changed between crawls - new pages, removed pages, status changes, etc.
+        """
+        payload = {
+            "fields": fields,
+            "limit": limit,
+            "offset": offset
+        }
+        if oql:
+            payload["oql"] = oql
+        if sort:
+            payload["sort"] = sort
+
+        return self._post(f"data/crawl_over_crawl/{coc_id}/pages", json_data=payload)
+
+    def aggregate_crawl_over_crawl(
+        self,
+        coc_id: str,
+        aggs: list[dict],
+        data_type: str = "pages"
+    ) -> dict:
+        """Aggregate crawl over crawl data to see change patterns"""
+        return self._post(
+            f"data/crawl_over_crawl/{coc_id}/{data_type}/aggs",
+            json_data={"aggs": aggs}
+        )
