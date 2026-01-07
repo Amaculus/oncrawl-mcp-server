@@ -66,6 +66,21 @@ pip install -e .
 3. Create a new token with `projects:read` scope
 4. Copy the token
 
+## Getting Your Workspace ID
+
+Your workspace ID is required to list projects. To find it:
+
+1. Log into OnCrawl
+2. Look at the URL in your browser - it will be in this format:
+   ```
+   https://app.oncrawl.com/workspace/5c015889451c956baf7ab7a9/projects
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+                                   This is your workspace ID
+   ```
+3. Copy the 24-character ID from the URL
+
+You can optionally add it to your config for convenience, or pass it directly when calling tools.
+
 ## Configuration
 
 ### For Claude Desktop
@@ -80,12 +95,15 @@ pip install -e .
       "command": "python",
       "args": ["-m", "oncrawl_mcp_server.server"],
       "env": {
-        "ONCRAWL_API_TOKEN": "your-api-token-here"
+        "ONCRAWL_API_TOKEN": "your-api-token-here",
+        "ONCRAWL_WORKSPACE_ID": "your-workspace-id-here"
       }
     }
   }
 }
 ```
+
+**Note**: `ONCRAWL_WORKSPACE_ID` is optional but recommended for convenience. If not set, you'll need to provide it when calling `oncrawl_list_projects`.
 
 ### For Claude Code (CLI)
 
@@ -100,12 +118,15 @@ claude mcp add oncrawl
       "command": "python",
       "args": ["-m", "oncrawl_mcp_server.server"],
       "env": {
-        "ONCRAWL_API_TOKEN": "your-api-token-here"
+        "ONCRAWL_API_TOKEN": "your-api-token-here",
+        "ONCRAWL_WORKSPACE_ID": "your-workspace-id-here"
       }
     }
   }
 }
 ```
+
+**Note**: `ONCRAWL_WORKSPACE_ID` is optional but recommended for convenience.
 
 **Important**: Restart Claude Desktop/Code after changing the config.
 
@@ -131,6 +152,8 @@ claude mcp add oncrawl
 ### Getting Started
 
 ```
+"List my OnCrawl projects"
+# If ONCRAWL_WORKSPACE_ID is not set in config, specify it:
 "List my OnCrawl projects in workspace 5c015889451c956baf7ab7a9"
 
 "Get the schema for crawl xyz789 - what fields are available?"

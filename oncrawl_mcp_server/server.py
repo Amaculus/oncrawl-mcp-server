@@ -5,6 +5,7 @@ Exposes OnCrawl API as tools for Claude to use in SEO analysis.
 
 import json
 import logging
+import os
 from typing import Any, Optional
 
 from mcp.server import Server
@@ -43,7 +44,7 @@ async def list_tools() -> list[Tool]:
                 "properties": {
                     "workspace_id": {
                         "type": "string",
-                        "description": "The workspace ID to list projects from"
+                        "description": "The workspace ID to list projects from. Optional if ONCRAWL_WORKSPACE_ID is set in environment."
                     },
                     "limit": {
                         "type": "integer",
@@ -51,7 +52,7 @@ async def list_tools() -> list[Tool]:
                         "default": 100
                     }
                 },
-                "required": ["workspace_id"]
+                "required": []
             }
         ),
         Tool(
@@ -405,8 +406,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         result = None
         
         if name == "oncrawl_list_projects":
+            workspace_id = arguments.get("workspace_id") or os.environ.get("ONCRAWL_WORKSPACE_ID")
+            if not workspace_id:
+                raise ValueError("workspace_id is required either as a parameter or via ONCRAWL_WORKSPACE_ID environment variable")
             result = client.list_projects(
-                workspace_id=arguments["workspace_id"],
+                workspace_id=workspace_id,
                 limit=arguments.get("limit", 100)
             )
         
