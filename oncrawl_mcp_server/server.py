@@ -479,6 +479,154 @@ Examples:
                 },
                 "required": ["coc_id", "aggs"]
             }
+        ),
+        Tool(
+            name="oncrawl_site_health",
+            description="""Quick site health summary. Returns key metrics at a glance:
+- Total pages crawled
+- Status code breakdown (2xx, 3xx, 4xx, 5xx)
+- Orphan page count (no inlinks)
+- Average crawl depth
+- Indexability stats
+
+Use this first to get an overview before diving into specific issues.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "crawl_id": {
+                        "type": "string",
+                        "description": "The crawl ID to analyze"
+                    }
+                },
+                "required": ["crawl_id"]
+            }
+        ),
+        Tool(
+            name="oncrawl_inspect_url",
+            description="""Get everything about a specific URL. Returns:
+- Status code, depth, crawl date
+- Title, meta description, h1
+- Canonical URL, robots directives
+- Inlinks and outlinks count
+- GSC data if available (clicks, impressions)
+- Core Web Vitals if available
+
+Use this to investigate specific pages.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "crawl_id": {
+                        "type": "string",
+                        "description": "The crawl ID"
+                    },
+                    "url": {
+                        "type": "string",
+                        "description": "The exact URL to inspect"
+                    }
+                },
+                "required": ["crawl_id", "url"]
+            }
+        ),
+        Tool(
+            name="oncrawl_find_url",
+            description="""Search for URLs by pattern. Returns matching URLs with basic info.
+Use when you don't know the exact URL but know part of it.
+
+Examples:
+- Find all product pages: pattern="/product/"
+- Find specific slug: pattern="my-article-slug"
+- Find by extension: pattern=".pdf" """,
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "crawl_id": {
+                        "type": "string",
+                        "description": "The crawl ID"
+                    },
+                    "pattern": {
+                        "type": "string",
+                        "description": "URL pattern to search for (will match anywhere in URL)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default 20)",
+                        "default": 20
+                    }
+                },
+                "required": ["crawl_id", "pattern"]
+            }
+        ),
+        Tool(
+            name="oncrawl_compare_crawls",
+            description="""Quick diff between two crawls. Returns summary of changes:
+- Pages added/removed
+- Status code changes
+- New 404s
+- Depth changes
+
+Requires a crawl-over-crawl (COC) ID from the project.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "coc_id": {
+                        "type": "string",
+                        "description": "The crawl-over-crawl comparison ID"
+                    }
+                },
+                "required": ["coc_id"]
+            }
+        ),
+        Tool(
+            name="oncrawl_top_issues",
+            description="""Pre-built query for common SEO problems. Returns counts and samples of:
+- 404 errors with inlinks (broken internal links)
+- Orphan pages (no internal links pointing to them)
+- Redirect chains (3+ hops)
+- Duplicate titles
+- Missing meta descriptions
+- Soft 404s
+
+Use this for a quick audit of common issues.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "crawl_id": {
+                        "type": "string",
+                        "description": "The crawl ID to analyze"
+                    }
+                },
+                "required": ["crawl_id"]
+            }
+        ),
+        Tool(
+            name="oncrawl_count",
+            description="""Quick count without fetching data. Much faster than search when you just need numbers.
+
+Examples:
+- Total pages: oql=null
+- 404 pages: oql={"field": ["status_code", "equals", 404]}
+- Orphan pages: oql={"field": ["follow_inlinks", "equals", 0]}
+- Deep pages: oql={"field": ["depth", "gte", 5]}""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "crawl_id": {
+                        "type": "string",
+                        "description": "The crawl ID"
+                    },
+                    "oql": {
+                        "type": "object",
+                        "description": "OQL filter (optional, null for total count)"
+                    },
+                    "data_type": {
+                        "type": "string",
+                        "enum": ["pages", "links", "clusters"],
+                        "description": "Data type to count (default: pages)",
+                        "default": "pages"
+                    }
+                },
+                "required": ["crawl_id"]
+            }
         )
     ]
 
@@ -646,6 +794,217 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 coc_id=arguments["coc_id"],
                 aggs=arguments["aggs"]
             )
+
+        elif name == "oncrawl_site_health":
+            crawl_id = arguments["crawl_id"]
+            # Run multiple aggregations for site health
+            status_agg = client.aggregate(crawl_id, [{"fields": [{"name": "status_code"}]}])
+            depth_agg = client.aggregate(crawl_id, [{"fields": [{"name": "depth"}], "value": "depth:avg"}])
+            orphan_agg = client.aggregate(crawl_id, [{"oql": {"field": ["follow_inlinks", "equals", 0]}, "fields": [{"name": "status_code"}]}])
+            indexable_agg = client.aggregate(crawl_id, [{"fields": [{"name": "indexable"}]}])
+
+            # Parse status codes into categories
+            status_breakdown = {}
+            total_pages = 0
+            if "aggs" in status_agg and status_agg["aggs"]:
+                for bucket in status_agg["aggs"][0].get("buckets", []):
+                    code = bucket.get("key")
+                    count = bucket.get("count", 0)
+                    total_pages += count
+                    if code:
+                        category = f"{str(code)[0]}xx"
+                        status_breakdown[category] = status_breakdown.get(category, 0) + count
+
+            # Get orphan count
+            orphan_count = 0
+            if "aggs" in orphan_agg and orphan_agg["aggs"]:
+                for bucket in orphan_agg["aggs"][0].get("buckets", []):
+                    orphan_count += bucket.get("count", 0)
+
+            # Get avg depth
+            avg_depth = None
+            if "aggs" in depth_agg and depth_agg["aggs"]:
+                avg_depth = depth_agg["aggs"][0].get("value")
+
+            # Get indexability
+            indexable_count = 0
+            non_indexable_count = 0
+            if "aggs" in indexable_agg and indexable_agg["aggs"]:
+                for bucket in indexable_agg["aggs"][0].get("buckets", []):
+                    if bucket.get("key") == True:
+                        indexable_count = bucket.get("count", 0)
+                    else:
+                        non_indexable_count = bucket.get("count", 0)
+
+            result = {
+                "total_pages": total_pages,
+                "status_breakdown": status_breakdown,
+                "orphan_pages": orphan_count,
+                "avg_depth": round(avg_depth, 2) if avg_depth else None,
+                "indexable": indexable_count,
+                "non_indexable": non_indexable_count
+            }
+
+        elif name == "oncrawl_inspect_url":
+            crawl_id = arguments["crawl_id"]
+            url = arguments["url"]
+            # Get comprehensive fields for this URL
+            fields = [
+                "url", "status_code", "depth", "fetch_date",
+                "title", "meta_description", "h1",
+                "canonical_url", "meta_robots", "x_robots_tag",
+                "follow_inlinks", "follow_outlinks", "nofollow_inlinks", "nofollow_outlinks",
+                "word_count", "load_time",
+                "indexable", "indexable_reason",
+                "gsc_clicks", "gsc_impressions", "gsc_ctr", "gsc_position"
+            ]
+            search_result = client.search_pages(
+                crawl_id=crawl_id,
+                fields=fields,
+                oql={"field": ["url", "equals", url]},
+                limit=1
+            )
+            if search_result.get("pages") and len(search_result["pages"]) > 0:
+                result = {"page": search_result["pages"][0]}
+            else:
+                result = {"error": f"URL not found: {url}"}
+
+        elif name == "oncrawl_find_url":
+            crawl_id = arguments["crawl_id"]
+            pattern = arguments["pattern"]
+            limit = arguments.get("limit", 20)
+            search_result = client.search_pages(
+                crawl_id=crawl_id,
+                fields=["url", "status_code", "depth", "title"],
+                oql={"field": ["url", "contains", pattern]},
+                limit=limit
+            )
+            result = {
+                "pattern": pattern,
+                "count": len(search_result.get("pages", [])),
+                "pages": search_result.get("pages", [])
+            }
+
+        elif name == "oncrawl_compare_crawls":
+            coc_id = arguments["coc_id"]
+            # Get change type breakdown
+            change_agg = client.aggregate_crawl_over_crawl(
+                coc_id=coc_id,
+                aggs=[{"fields": [{"name": "change_type"}]}]
+            )
+            # Get status code changes (new 404s)
+            new_404_result = client.search_crawl_over_crawl(
+                coc_id=coc_id,
+                fields=["url", "previous_status_code", "current_status_code"],
+                oql={"and": [
+                    {"field": ["current_status_code", "equals", 404]},
+                    {"field": ["previous_status_code", "not_equals", 404]}
+                ]},
+                limit=10
+            )
+
+            changes = {}
+            if "aggs" in change_agg and change_agg["aggs"]:
+                for bucket in change_agg["aggs"][0].get("buckets", []):
+                    changes[bucket.get("key", "unknown")] = bucket.get("count", 0)
+
+            result = {
+                "change_summary": changes,
+                "new_404s": new_404_result.get("pages", [])[:10]
+            }
+
+        elif name == "oncrawl_top_issues":
+            crawl_id = arguments["crawl_id"]
+            issues = {}
+
+            # 404s with inlinks
+            broken_links = client.search_pages(
+                crawl_id=crawl_id,
+                fields=["url", "follow_inlinks"],
+                oql={"and": [
+                    {"field": ["status_code", "equals", 404]},
+                    {"field": ["follow_inlinks", "gt", 0]}
+                ]},
+                limit=5,
+                sort=[{"field": "follow_inlinks", "order": "desc"}]
+            )
+            issues["404_with_inlinks"] = {
+                "count": broken_links.get("count", len(broken_links.get("pages", []))),
+                "samples": broken_links.get("pages", [])
+            }
+
+            # Orphan pages (indexable only)
+            orphans = client.search_pages(
+                crawl_id=crawl_id,
+                fields=["url", "title"],
+                oql={"and": [
+                    {"field": ["follow_inlinks", "equals", 0]},
+                    {"field": ["indexable", "equals", True]}
+                ]},
+                limit=5
+            )
+            issues["orphan_pages"] = {
+                "count": orphans.get("count", len(orphans.get("pages", []))),
+                "samples": orphans.get("pages", [])
+            }
+
+            # Missing meta descriptions
+            missing_meta = client.aggregate(
+                crawl_id=crawl_id,
+                aggs=[{"oql": {"and": [
+                    {"field": ["meta_description", "has_no_value", ""]},
+                    {"field": ["indexable", "equals", True]}
+                ]}, "fields": [{"name": "status_code"}]}]
+            )
+            missing_count = 0
+            if "aggs" in missing_meta and missing_meta["aggs"]:
+                for bucket in missing_meta["aggs"][0].get("buckets", []):
+                    missing_count += bucket.get("count", 0)
+            issues["missing_meta_description"] = {"count": missing_count}
+
+            # Duplicate titles
+            dup_titles = client.aggregate(
+                crawl_id=crawl_id,
+                aggs=[{"oql": {"field": ["indexable", "equals", True]}, "fields": [{"name": "title"}]}]
+            )
+            dup_count = 0
+            if "aggs" in dup_titles and dup_titles["aggs"]:
+                for bucket in dup_titles["aggs"][0].get("buckets", []):
+                    if bucket.get("count", 0) > 1:
+                        dup_count += bucket.get("count", 0)
+            issues["duplicate_titles"] = {"count": dup_count}
+
+            # Soft 404s (status 200 but marked as soft 404 or very thin content)
+            soft_404s = client.aggregate(
+                crawl_id=crawl_id,
+                aggs=[{"oql": {"field": ["status_code", "equals", 202]}, "fields": [{"name": "status_code"}]}]
+            )
+            soft_count = 0
+            if "aggs" in soft_404s and soft_404s["aggs"]:
+                for bucket in soft_404s["aggs"][0].get("buckets", []):
+                    soft_count += bucket.get("count", 0)
+            issues["soft_404s"] = {"count": soft_count}
+
+            result = issues
+
+        elif name == "oncrawl_count":
+            crawl_id = arguments["crawl_id"]
+            oql = arguments.get("oql")
+            data_type = arguments.get("data_type", "pages")
+
+            # Use aggregate with no grouping to get count
+            aggs = [{"fields": [{"name": "status_code"}]}]
+            if oql:
+                aggs = [{"oql": oql, "fields": [{"name": "status_code"}]}]
+
+            agg_result = client.aggregate(crawl_id=crawl_id, aggs=aggs, data_type=data_type)
+
+            total = 0
+            if "aggs" in agg_result and agg_result["aggs"]:
+                for bucket in agg_result["aggs"][0].get("buckets", []):
+                    total += bucket.get("count", 0)
+
+            result = {"count": total}
 
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
