@@ -135,10 +135,10 @@ class OnCrawlClient:
         fields: list[str],
         oql: Optional[dict] = None,
         max_results: Optional[int] = None,
-        batch_size: int = 10000
+        batch_size: int = 1000
     ) -> dict:
         """
-        Auto-paginating link search that bypasses the 10k limit.
+        Auto-paginating link search that bypasses the 1k limit.
         Fetches all matching links by paginating through results.
 
         Args:
@@ -146,7 +146,7 @@ class OnCrawlClient:
             fields: Fields to return
             oql: Optional filter
             max_results: Maximum results to return (None = all)
-            batch_size: Results per API call (max 10000)
+            batch_size: Results per API call (max 1000 for links endpoint)
 
         Returns:
             dict with 'links' array and 'meta' with total_hits
@@ -160,7 +160,7 @@ class OnCrawlClient:
                 crawl_id=crawl_id,
                 fields=fields,
                 oql=oql,
-                limit=min(batch_size, 10000),
+                limit=min(batch_size, 1000),
                 offset=offset
             )
 
