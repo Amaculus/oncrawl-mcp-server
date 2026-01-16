@@ -328,6 +328,37 @@ Warning: Can be slow for large sites. Consider filtering with OQL first.""",
             }
         ),
         Tool(
+            name="oncrawl_export_links",
+            description="""Export internal links without the 10k limit. For complete link graph analysis (inlinks, outlinks).
+Use for: finding all inlinks to a page/subdomain, link equity analysis, anchor text audits.
+Warning: Can be slow for large sites. Use OQL filters to limit export size.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "crawl_id": {
+                        "type": "string",
+                        "description": "The crawl ID"
+                    },
+                    "fields": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Fields to export (e.g., url, target_url, target_host, anchor, follow, status_code)"
+                    },
+                    "oql": {
+                        "type": "object",
+                        "description": "OQL filter (e.g., filter by target_host for inlinks)"
+                    },
+                    "file_type": {
+                        "type": "string",
+                        "enum": ["json", "csv"],
+                        "description": "Output format (default: csv)",
+                        "default": "csv"
+                    }
+                },
+                "required": ["crawl_id", "fields"]
+            }
+        ),
+        Tool(
             name="oncrawl_search_clusters",
             description="Search duplicate content clusters. Use to find near-duplicate pages that might cause cannibalization.",
             inputSchema={
@@ -745,7 +776,17 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
             # Return as-is for JSON/CSV
             return [TextContent(type="text", text=raw)]
-        
+
+        elif name == "oncrawl_export_links":
+            raw = client.export_links(
+                crawl_id=arguments["crawl_id"],
+                fields=arguments["fields"],
+                oql=arguments.get("oql"),
+                file_type=arguments.get("file_type", "csv")
+            )
+            # Return as-is for JSON/CSV
+            return [TextContent(type="text", text=raw)]
+
         elif name == "oncrawl_search_clusters":
             result = client.search_clusters(
                 crawl_id=arguments["crawl_id"],

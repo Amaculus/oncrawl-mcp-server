@@ -319,7 +319,60 @@ class OnCrawlClient:
                 raise Exception(f"Export error {response.status_code}: {response.text}")
             
             return response.text
-    
+
+    def export_links(
+        self,
+        crawl_id: str,
+        fields: list[str],
+        oql: Optional[dict] = None,
+        file_type: str = "csv"
+    ) -> str:
+        """
+        Export internal links as CSV or JSON (no 10k limit).
+
+        First tries ?export=true (streaming). If API doesn't support it,
+        falls back to search_all_links with CSV conversion.
+        """
+        import io
+        import csv
+        import json
+
+        url = urljoin(self.BASE_URL, f"data/crawl/{crawl_id}/links")
+        payload = {"fields": fields}
+        if oql:
+            payload["oql"] = oql
+
+        # Try export=true first (same pattern as pages export)
+        try:
+            with httpx.Client(timeout=300.0) as http_client:
+                response = http_client.post(
+                    url,
+                    headers=self.headers,
+                    json=payload,
+                    params={"export": "true", "file_type": file_type}
+                )
+                if response.status_code < 400:
+                    return response.text
+        except Exception:
+            pass  # Fall through to pagination approach
+
+        # Fallback: use search_all_links with CSV conversion
+        result = self.search_all_links(crawl_id, fields, oql)
+        links = result.get("links", [])
+
+        if file_type == "json":
+            return json.dumps(links, indent=2)
+
+        # Convert to CSV
+        if not links:
+            return ""
+
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=fields, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(links)
+        return output.getvalue()
+
     # === Clusters (Duplicate Detection) ===
     
     def search_clusters(
