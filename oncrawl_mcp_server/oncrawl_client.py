@@ -328,49 +328,60 @@ class OnCrawlClient:
         file_type: str = "csv"
     ) -> str:
         """
-        Export internal links as CSV or JSON (no 10k limit).
-
-        First tries ?export=true (streaming). If API doesn't support it,
-        falls back to search_all_links with CSV conversion.
+        Export internal links as CSV or JSON using pagination.
+        Fetches in batches of 1000 with progress logging every 50k.
         """
         import io
         import csv
         import json
+        import logging
 
-        url = urljoin(self.BASE_URL, f"data/crawl/{crawl_id}/links")
-        payload = {"fields": fields}
-        if oql:
-            payload["oql"] = oql
+        logger = logging.getLogger("oncrawl-mcp")
 
-        # Try export=true first (same pattern as pages export)
-        try:
-            with httpx.Client(timeout=300.0) as http_client:
-                response = http_client.post(
-                    url,
-                    headers=self.headers,
-                    json=payload,
-                    params={"export": "true", "file_type": file_type}
-                )
-                if response.status_code < 400:
-                    return response.text
-        except Exception:
-            pass  # Fall through to pagination approach
+        all_links = []
+        offset = 0
+        batch_size = 1000
+        total_hits = None
+        last_logged = 0
 
-        # Fallback: use search_all_links with CSV conversion
-        result = self.search_all_links(crawl_id, fields, oql)
-        links = result.get("links", [])
+        while True:
+            result = self.search_links(
+                crawl_id=crawl_id,
+                fields=fields,
+                oql=oql,
+                limit=batch_size,
+                offset=offset
+            )
+
+            batch_links = result.get("links", [])
+            if total_hits is None:
+                total_hits = result.get("meta", {}).get("total_hits", 0)
+                logger.info(f"Export links: {total_hits:,} total links to fetch")
+
+            all_links.extend(batch_links)
+
+            # Log progress every 50k links
+            if len(all_links) - last_logged >= 50000:
+                logger.info(f"Export links progress: {len(all_links):,} / {total_hits:,}")
+                last_logged = len(all_links)
+
+            if len(batch_links) < batch_size:
+                break
+
+            offset += batch_size
+
+        logger.info(f"Export links complete: {len(all_links):,} links")
 
         if file_type == "json":
-            return json.dumps(links, indent=2)
+            return json.dumps(all_links, indent=2)
 
-        # Convert to CSV
-        if not links:
+        if not all_links:
             return ""
 
         output = io.StringIO()
         writer = csv.DictWriter(output, fieldnames=fields, extrasaction='ignore')
         writer.writeheader()
-        writer.writerows(links)
+        writer.writerows(all_links)
         return output.getvalue()
 
     # === Clusters (Duplicate Detection) ===
